@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fff7ed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Jonas' Küche">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Jonas' Küche</title>
+<style>
+  :root{
+    --bg:#fff7ed; --card:#ffffff; --ink:#2b2118; --muted:#8a7a6b; --line:#f1e4d4;
+    --acc:#f97316; --acc2:#fb923c; --accSoft:#ffedd5; --ok:#16a34a; --bad:#dc2626;
+    --r:16px; --safeT:env(safe-area-inset-top); --safeB:env(safe-area-inset-bottom);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  body{padding-bottom:calc(72px + var(--safeB))}
+  button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+  input,textarea,select{font:inherit;color:inherit}
+  .hidden{display:none!important}
+
+  header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(var(--safeT) + 12px) 16px 8px}
+  header.top h1{margin:0 0 10px;font-size:26px;letter-spacing:-.3px}
+  header.top h1 span{color:var(--acc)}
+  .searchrow{display:flex;gap:8px}
+  .searchrow input{flex:1;min-width:0;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .searchrow select{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff;max-width:42%}
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:14px}
+  .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+
+  main{padding:8px 16px 16px}
+  .card{background:var(--card);border-radius:var(--r);box-shadow:0 1px 3px rgba(80,40,0,.08)}
+  .rlist{display:grid;gap:10px}
+  .ritem{display:flex;gap:12px;align-items:center;padding:10px;text-align:left;width:100%}
+  .thumb{flex:none;width:64px;height:64px;border-radius:12px;background:var(--accSoft);display:flex;align-items:center;justify-content:center;font-size:34px;overflow:hidden}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .rinfo{flex:1;min-width:0}
+  .rname{font-weight:650;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rmeta{color:var(--muted);font-size:13px;margin-top:2px}
+  .rscore{flex:none;text-align:center;min-width:48px}
+  .rscore .f{font-size:28px;line-height:1}
+  .rscore .n{font-size:12px;color:var(--muted)}
+  .empty{text-align:center;color:var(--muted);padding:48px 20px}
+  .empty .big{font-size:56px}
+
+  .fab{position:fixed;right:18px;bottom:calc(86px + var(--safeB));width:58px;height:58px;border-radius:50%;background:var(--acc);color:#fff;font-size:32px;box-shadow:0 6px 16px rgba(249,115,22,.4);z-index:6}
+
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:7;display:flex;background:#fff;border-top:1px solid var(--line);padding-bottom:var(--safeB)}
+  nav.tabs button{flex:1;padding:8px 0 10px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+  nav.tabs button .i{font-size:22px}
+  nav.tabs button.on{color:var(--acc);font-weight:600}
+
+  /* Overlays */
+  .ov{position:fixed;inset:0;z-index:20;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;transform:translateX(100%);transition:transform .25s ease;padding-bottom:calc(24px + var(--safeB))}
+  .ov.open{transform:none}
+  .ovbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:calc(var(--safeT) + 8px) 12px 8px;background:var(--bg)}
+  .ovbar .t{flex:1;font-weight:650;font-size:17px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ibtn{min-width:44px;height:40px;padding:0 10px;border-radius:12px;background:#fff;border:1px solid var(--line);font-size:16px}
+  .ibtn.acc{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  .ovbody{padding:4px 16px 16px}
+
+  .hero{width:100%;aspect-ratio:4/3;border-radius:var(--r);background:var(--accSoft);display:flex;align-items:center;justify-content:center;font-size:96px;overflow:hidden}
+  .hero img{width:100%;height:100%;object-fit:cover}
+  .dtitle{font-size:26px;font-weight:700;margin:14px 0 4px;letter-spacing:-.3px}
+  .pills{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+  .pill{padding:4px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+  .scorebox{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px}
+  .scorebox .f{font-size:40px}
+  .scorebox .txt b{font-size:18px}
+  .scorebox .txt div{color:var(--muted);font-size:13px}
+  .btnrow{display:flex;gap:8px;margin:0 0 16px}
+  .btn{flex:1;padding:13px 10px;border-radius:14px;background:#fff;border:1px solid var(--line);font-weight:600}
+  .btn.acc{background:var(--acc);border-color:var(--acc);color:#fff}
+  .btn.danger{color:var(--bad);border-color:#fecaca}
+  h3.sec{font-size:18px;margin:18px 0 8px}
+  .ing{list-style:none;margin:0;padding:4px 0}
+  .ing li{display:flex;gap:10px;align-items:flex-start;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .ing li:last-child{border-bottom:0}
+  .ing li .cb{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--acc2);margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff}
+  .ing li.done .cb{background:var(--acc)}
+  .ing li.done span{text-decoration:line-through;color:var(--muted)}
+  .steps{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .steps li{display:flex;gap:12px;padding:12px 14px}
+  .steps li .no{flex:none;width:28px;height:28px;border-radius:50%;background:var(--accSoft);color:var(--acc);font-weight:700;display:flex;align-items:center;justify-content:center}
+  .steps li.done{opacity:.45}
+  .notes{padding:12px 14px;white-space:pre-wrap}
+  .sides{display:flex;flex-wrap:wrap;gap:8px}
+  .side{display:flex;align-items:center;gap:8px;padding:8px 12px 8px 8px;font-size:15px;font-weight:550}
+  .side .e{width:34px;height:34px;border-radius:9px;background:var(--accSoft);display:flex;align-items:center;justify-content:center;font-size:20px;overflow:hidden}
+  .side .e img{width:100%;height:100%;object-fit:cover}
+  .pick{display:flex;flex-wrap:wrap;gap:6px}
+  .pick button{padding:6px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);font-size:14px}
+  .pick button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .hist{display:grid;gap:8px}
+  .hitem{display:flex;gap:12px;align-items:flex-start;padding:10px 14px;text-align:left;width:100%}
+  .hitem .f{font-size:30px;line-height:1}
+  .hitem .b{flex:1;min-width:0}
+  .hitem .d{font-size:13px;color:var(--muted)}
+  .hitem .nt{margin-top:2px;white-space:pre-wrap}
+
+  /* Formular */
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 5px 2px}
+  .field input,.field textarea,.field select{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .field textarea{min-height:110px;resize:vertical}
+  .field .hint{font-size:12px;color:var(--muted);margin:4px 2px 0}
+  .row2{display:flex;gap:10px}
+  .row2 .field{flex:1;min-width:0}
+  .emojis{display:flex;flex-wrap:wrap;gap:6px}
+  .emojis button{width:42px;height:42px;border-radius:10px;background:#fff;border:1px solid var(--line);font-size:24px}
+  .emojis button.on{border:2px solid var(--acc);background:var(--accSoft)}
+  .photoedit{display:flex;gap:12px;align-items:center}
+  .photoedit .thumb{width:84px;height:84px;font-size:44px}
+
+  /* Bewertung (Bottom Sheet) */
+  .sheetbg{position:fixed;inset:0;z-index:40;background:rgba(40,20,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+  .sheetbg.open{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-radius:22px 22px 0 0;padding:10px 16px calc(18px + var(--safeB));transform:translateY(105%);transition:transform .25s ease;max-height:92vh;overflow-y:auto}
+  .sheet.open{transform:none}
+  .grab{width:40px;height:5px;border-radius:3px;background:#e7d6c3;margin:0 auto 10px}
+  .sheet h2{margin:0 0 4px;font-size:20px;text-align:center}
+  .sheet .sub{text-align:center;color:var(--muted);margin-bottom:14px}
+  .faces{display:flex;justify-content:space-between;gap:4px;margin-bottom:6px}
+  .faces button{flex:1;padding:8px 0;border-radius:14px;font-size:38px;line-height:1;filter:grayscale(.85);opacity:.55;transition:transform .15s}
+  .faces button.on{filter:none;opacity:1;background:var(--accSoft);transform:scale(1.1)}
+  .facetxt{text-align:center;font-weight:600;min-height:22px;margin-bottom:14px;color:var(--acc)}
+  .seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+  .seg button{flex:1;padding:9px 4px;border-radius:9px;font-size:14px}
+  .seg button.on{background:var(--acc);color:#fff;font-weight:600}
+
+  /* Kochmodus */
+  #cook{display:flex;flex-direction:column;padding-bottom:0}
+  #cook .cookmain{flex:1;display:flex;flex-direction:column;justify-content:center;padding:16px 22px}
+  #cook .stepno{color:var(--acc);font-weight:700;font-size:15px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+  #cook .steptxt{font-size:28px;line-height:1.35;font-weight:550}
+  #cook .prog{height:6px;background:var(--line);border-radius:3px;margin:0 16px;overflow:hidden}
+  #cook .prog div{height:100%;background:var(--acc);transition:width .2s}
+  #cook .cooknav{display:flex;gap:10px;padding:16px 16px calc(16px + var(--safeB))}
+  #cook .cooknav .btn{padding:18px 10px;font-size:18px}
+  #cookIng{margin:0 16px 8px}
+
+  /* Verlauf / Einstellungen */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat{padding:14px}
+  .stat .v{font-size:26px;font-weight:700}
+  .stat .l{font-size:13px;color:var(--muted)}
+  .top3{padding:6px 0;margin-bottom:6px}
+  .top3 button{display:flex;gap:10px;align-items:center;width:100%;padding:9px 14px;text-align:left;border-bottom:1px solid var(--line)}
+  .top3 button:last-child{border-bottom:0}
+  .top3 .m{font-size:20px;width:28px;text-align:center}
+  .setcard{padding:14px;margin-bottom:12px}
+  .setcard p{margin:4px 0 12px;color:var(--muted);font-size:14px}
+  .toast{position:fixed;left:50%;bottom:calc(90px + var(--safeB));transform:translateX(-50%) translateY(20px);background:#2b2118;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:60;pointer-events:none;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ========== Tab: Rezepte ========== -->
+<section id="tabRecipes">
+  <header class="top">
+    <h1>Jonas' <span>Küche</span></h1>
+    <div class="searchrow">
+      <input id="q" type="search" placeholder="Rezept oder Zutat suchen …" autocomplete="off">
+      <select id="sort" aria-label="Sortierung">
+        <option value="rating">😍 Beliebteste</option>
+        <option value="recent">🕒 Zuletzt gekocht</option>
+        <option value="often">🔁 Am häufigsten</option>
+        <option value="az">🔤 A–Z</option>
+      </select>
+    </div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <main><div class="rlist" id="rlist"></div></main>
+  <button class="fab" id="fab" aria-label="Neues Rezept">+</button>
+</section>
+
+<!-- ========== Tab: Verlauf ========== -->
+<section id="tabHistory" class="hidden">
+  <header class="top"><h1>Wie hat's <span>geschmeckt?</span></h1></header>
+  <main id="historyBody"></main>
+</section>
+
+<!-- ========== Tab: Einstellungen ========== -->
+<section id="tabSettings" class="hidden">
+  <header class="top"><h1><span>Einstellungen</span></h1></header>
+  <main>
+    <div class="card setcard">
+      <b>💾 Backup speichern</b>
+      <p>Speichert alle Rezepte, Fotos und Bewertungen in einer Datei, z. B. für einen Handywechsel. Am iPhone über „Teilen → In Dateien sichern“.</p>
+      <button class="btn acc" style="width:100%" id="btnExport">Backup exportieren</button>
+    </div>
+    <div class="card setcard">
+      <b>📂 Backup laden</b>
+      <p>Ersetzt <b>alle</b> aktuellen Daten durch den Inhalt der Backup-Datei.</p>
+      <button class="btn" style="width:100%" id="btnImport">Backup importieren</button>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    </div>
+    <div class="card setcard">
+      <b>📚 Basis-Rezepte</b>
+      <p>Fügt fehlende Basis-Rezepte wieder hinzu (Spätzle, Soße, Beilagen, Kinder-Klassiker). Eigene Rezepte und Bewertungen bleiben unverändert.</p>
+      <button class="btn" style="width:100%" id="btnStarters">Basis-Rezepte ergänzen</button>
+    </div>
+    <div class="card setcard">
+      <b>ℹ️ Info</b>
+      <p id="infoTxt" style="margin-bottom:0"></p>
+    </div>
+  </main>
+</section>
+
+<nav class="tabs">
+  <button data-tab="tabRecipes" class="on"><span class="i">📖</span>Rezepte</button>
+  <button data-tab="tabHistory"><span class="i">😋</span>Verlauf</button>
+  <button data-tab="tabSettings"><span class="i">⚙️</span>Einstellungen</button>
+</nav>
+
+<!-- ========== Overlay: Rezept-Detail ========== -->
+<div class="ov" id="detail">
+  <div class="ovbar">
+    <button class="ibtn" data-close="detail">‹ Zurück</button>
+    <div class="t" id="detailTitle"></div>
+    <button class="ibtn" id="detailEdit">✏️</button>
+  </div>
+  <div class="ovbody" id="detailBody"></div>
+</div>
+
+<!-- ========== Overlay: Rezept bearbeiten ========== -->
+<div class="ov" id="edit">
+  <div class="ovbar">
+    <button class="ibtn" data-close="edit">Abbrechen</button>
+    <div class="t" id="editTitle">Neues Rezept</div>
+    <button class="ibtn acc" id="editSave">Sichern</button>
+  </div>
+  <div class="ovbody">
+    <div class="field"><label for="fName">Name *</label><input id="fName" placeholder="z. B. Spaghetti Bolognese"></div>
+    <div class="field">
+      <label>Bild</label>
+      <div class="photoedit">
+        <div class="thumb" id="fThumb">🍝</div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+          <button class="btn" id="fPhotoBtn" type="button">📷 Foto wählen</button>
+          <button class="btn danger hidden" id="fPhotoDel" type="button">Foto entfernen</button>
+        </div>
+      </div>
+      <input type="file" id="fPhoto" accept="image/*" class="hidden">
+      <div class="hint">Ohne Foto wird das Emoji angezeigt:</div>
+      <div class="emojis" id="fEmojis" style="margin-top:6px"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="fCat">Kategorie</label><input id="fCat" list="catList" placeholder="z. B. Nudeln"><datalist id="catList"></datalist></div>
+      <div class="field"><label for="fTime">Zeit (Min.)</label><input id="fTime" type="number" inputmode="numeric" min="0" placeholder="30"></div>
+      <div class="field" style="flex:.8"><label for="fPort">Portionen</label><input id="fPort" type="number" inputmode="numeric" min="0" placeholder="2"></div>
+    </div>
+    <div class="field">
+      <label for="fIng">Zutaten</label>
+      <textarea id="fIng" placeholder="250 g Spaghetti&#10;200 g Hackfleisch&#10;1 Dose Tomaten"></textarea>
+      <div class="hint">Eine Zutat pro Zeile.</div>
+    </div>
+    <div class="field">
+      <label for="fSteps">Anleitung</label>
+      <textarea id="fSteps" style="min-height:160px" placeholder="Wasser aufsetzen und salzen.&#10;Hackfleisch krümelig anbraten.&#10;Tomaten dazugeben, 15 Min. köcheln."></textarea>
+      <div class="hint">Ein Schritt pro Zeile – daraus wird der Kochmodus.</div>
+    </div>
+    <div class="field">
+      <label for="fNotes">Tipps / Notizen</label>
+      <textarea id="fNotes" style="min-height:80px" placeholder="z. B. mag es ohne Zwiebeln, extra Käse drüber"></textarea>
+    </div>
+    <div class="field">
+      <label>Passt dazu</label>
+      <div class="pick" id="fGoes"></div>
+      <div class="hint">Antippen, was gut dazu passt (z. B. Beilagen).</div>
+    </div>
+    <button class="btn danger hidden" id="editDelete" style="width:100%;margin-top:8px">🗑️ Rezept löschen</button>
+  </div>
+</div>
+
+<!-- ========== Overlay: Kochmodus ========== -->
+<div class="ov" id="cook">
+  <div class="ovbar">
+    <button class="ibtn" id="cookClose">✕ Beenden</button>
+    <div class="t" id="cookTitle"></div>
+    <button class="ibtn" id="cookIngBtn">🧺</button>
+  </div>
+  <div class="card hidden" id="cookIng"><ul class="ing" id="cookIngList"></ul></div>
+  <div class="prog"><div id="cookProg"></div></div>
+  <div class="cookmain">
+    <div class="stepno" id="cookNo"></div>
+    <div class="steptxt" id="cookTxt"></div>
+  </div>
+  <div class="cooknav">
+    <button class="btn" id="cookPrev">‹ Zurück</button>
+    <button class="btn acc" id="cookNext">Weiter ›</button>
+  </div>
+</div>
+
+<!-- ========== Sheet: Bewertung ========== -->
+<div class="sheetbg" id="rateBg"></div>
+<div class="sheet" id="rate">
+  <div class="grab"></div>
+  <h2 id="rateTitle">Wie hat's geschmeckt?</h2>
+  <div class="sub" id="rateSub"></div>
+  <div class="faces" id="rateFaces"></div>
+  <div class="facetxt" id="rateFaceTxt">Tippe auf ein Gesicht</div>
+  <div class="field">
+    <label>Wie viel hat er gegessen?</label>
+    <div class="seg" id="rateEaten"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label for="rateDate">Datum</label><input id="rateDate" type="date"></div>
+  </div>
+  <div class="field"><label for="rateNote">Notiz</label><textarea id="rateNote" style="min-height:70px" placeholder="z. B. wollte Nachschlag, Soße zu scharf …"></textarea></div>
+  <div class="btnrow" style="margin-bottom:0">
+    <button class="btn danger hidden" id="rateDelete">🗑️</button>
+    <button class="btn" id="rateCancel">Abbrechen</button>
+    <button class="btn acc" id="rateSave">Speichern</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const APP_VERSION = '1.1';
+const FACES = {1:'😖',2:'😕',3:'😐',4:'😋',5:'😍'};
+const FACE_TXT = {1:'Mag er gar nicht',2:'Eher nicht',3:'Geht so',4:'Lecker!',5:'Lieblingsessen!'};
+const EATEN = [['all','Alles 🍽️'],['half','Hälfte'],['bit','Nur probiert']];
+const EATEN_TXT = {all:'alles aufgegessen',half:'die Hälfte gegessen',bit:'nur probiert'};
+const EMOJIS = ['🍝','🍕','🍔','🌭','🍟','🥞','🧇','🍳','🥣','🍲','🍜','🍛','🥘','🍚','🥗','🥪','🌮','🌯','🥟','🍗','🍖','🐟','🥔','🥕','🥦','🌽','🍅','🧀','🥨','🍰','🧁','🍪','🍎','🍓','🍌','🥛'];
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const fmtDate = s => { if (!s) return ''; const [y, m, d] = s.split('-'); return `${d}.${m}.${y}`; };
+const fmtNum = n => n.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1});
+function daysAgo(s){
+  const diff = Math.round((new Date(today()) - new Date(s)) / 86400000);
+  if (diff <= 0) return 'heute'; if (diff === 1) return 'gestern';
+  if (diff < 14) return `vor ${diff} Tagen`; if (diff < 60) return `vor ${Math.round(diff / 7)} Wochen`;
+  return `vor ${Math.round(diff / 30)} Monaten`;
+}
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2000); }
+
+/* ---------- Basis-Rezepte (werden beim ersten Start geladen, über Einstellungen ergänzbar) ---------- */
+const S = (id, name, emoji, category, time, portions, ing, steps, notes, goesWith = []) =>
+  ({id, starterId: id, name, emoji, photo: null, category, time, portions,
+    ingredients: ing.split('\n').map(x => x.trim()).filter(Boolean),
+    steps: steps.split('\n').map(x => x.trim()).filter(Boolean), notes, goesWith});
+const STARTERS = [
+  S('s-spaetzle', 'Spätzle (selbstgemacht)', '🍜', 'Beilage', 30, 3, `
+    400 g Spätzlemehl (oder Weizenmehl Type 405)
+    4 Eier
+    ca. 150 ml Wasser
+    1 TL Salz
+    1 EL Butter`, `
+    Mehl, Eier und Salz in eine Schüssel geben, nach und nach das Wasser dazu.
+    Teig mit dem Kochlöffel kräftig schlagen, bis er Blasen wirft und zäh vom Löffel reißt.
+    Teig 10 Minuten ruhen lassen. In der Zeit einen großen Topf Wasser mit Salz zum Kochen bringen.
+    Teig portionsweise durch die Spätzlepresse oder über den Spätzlehobel ins siedende Wasser drücken.
+    Sobald die Spätzle oben schwimmen, noch 1 Minute ziehen lassen, dann mit dem Schaumlöffel herausholen.
+    In einer Schüssel mit etwas Butter schwenken, damit sie nicht kleben.`,
+    'Abkürzung: frische Spätzle aus dem Kühlregal, 2–3 Min. in der Pfanne mit Butter.\nJonas kann den Teig mitrühren.',
+    ['s-sosse', 's-erbsen', 's-bratwurst', 's-fleischkuechle']),
+  S('s-sosse', 'Bratensoße (schnell)', '🥣', 'Beilage', 20, 3, `
+    1 kleine Zwiebel
+    1 EL Butter
+    1 EL Tomatenmark
+    1 EL Mehl
+    400 ml Gemüse- oder Rinderbrühe
+    1 Schuss Sahne
+    Salz, Pfeffer`, `
+    Zwiebel sehr fein würfeln und in der Butter glasig dünsten.
+    Tomatenmark dazugeben und 1 Minute mitrösten.
+    Mehl darüberstäuben und unter Rühren hellbraun anschwitzen.
+    Brühe nach und nach mit dem Schneebesen einrühren, damit keine Klümpchen entstehen.
+    10 Minuten leise köcheln lassen.
+    Sahne dazu, abschmecken und mit dem Pürierstab glatt pürieren.`,
+    'Kinder mögen sie meist ohne Stückchen – deshalb pürieren.\nNoch besser: Bratensatz vom Würstchen- oder Fleischküchle-Braten mit der Brühe ablöschen.',
+    ['s-spaetzle', 's-kartoffelbrei']),
+  S('s-erbsen', 'Erbsen & Karotten', '🥕', 'Beilage', 15, 3, `
+    300 g TK-Erbsen
+    3 Karotten
+    1 EL Butter
+    50 ml Wasser
+    1 Prise Salz
+    1 Prise Zucker`, `
+    Karotten schälen und in kleine Würfel oder dünne Scheiben schneiden.
+    Mit Butter und Wasser in einen Topf geben, zugedeckt 8 Minuten dünsten.
+    Erbsen dazugeben und weitere 4–5 Minuten mitgaren.
+    Mit einer Prise Salz und Zucker abschmecken.`,
+    'Die Prise Zucker macht das Gemüse für Kinder schön mild-süß.\nWer mag: etwas gehackte Petersilie drüber.',
+    ['s-spaetzle', 's-fischstaebchen', 's-fleischkuechle']),
+  S('s-bratwurst', 'Bratwürstchen', '🌭', 'Fleisch', 12, 3, `
+    6 Rostbratwürstchen (oder Nürnberger)
+    1 EL Öl`, `
+    Öl in einer Pfanne bei mittlerer Hitze erwärmen.
+    Würstchen hineinlegen und 8–10 Minuten rundum braun braten, dabei immer wieder wenden.
+    Nicht zu heiß braten, sonst platzen sie auf.`,
+    'Für kleine Kinder Würstchen erst längs halbieren und dann in Stücke schneiden – runde Scheiben sind eine Verschluckgefahr.\nBratensatz für die Bratensoße nutzen.',
+    ['s-spaetzle', 's-sosse', 's-kartoffelbrei', 's-erbsen']),
+  S('s-kaesespaetzle', 'Käsespätzle', '🧀', 'Nudeln & Spätzle', 30, 3, `
+    500 g Spätzle (selbstgemacht oder Kühlregal)
+    200 g geriebener Käse (Emmentaler oder Bergkäse)
+    2 Zwiebeln
+    2 EL Butter`, `
+    Backofen auf 180 °C Ober-/Unterhitze vorheizen.
+    Zwiebeln in feine Ringe schneiden und in Butter goldbraun braten.
+    Spätzle kochen bzw. erwärmen.
+    Spätzle und Käse abwechselnd in eine Auflaufform schichten, mit Käse abschließen.
+    10 Minuten im Ofen backen, bis der Käse geschmolzen ist.
+    Röstzwiebeln obendrauf verteilen.`,
+    'Für Kinder milderen Käse nehmen (Emmentaler, junger Gouda). Zwiebeln ggf. getrennt servieren.',
+    ['s-apfelmus', 's-erbsen']),
+  S('s-linsen', 'Linsen mit Spätzle & Saitenwürstle', '🥘', 'Fleisch', 50, 3, `
+    250 g Tellerlinsen
+    1 Karotte
+    1 Stück Knollensellerie
+    1 Zwiebel
+    1 EL Butter
+    1 EL Mehl
+    750 ml Gemüsebrühe
+    1–2 EL Essig
+    1 TL Zucker
+    6 Saitenwürstle (Wiener)
+    Salz, Pfeffer`, `
+    Zwiebel, Karotte und Sellerie in kleine Würfel schneiden.
+    Zwiebel in Butter andünsten, Mehl darüber und kurz anschwitzen.
+    Mit der Brühe ablöschen, Linsen und Gemüse dazugeben.
+    Ca. 35–40 Minuten köcheln lassen, bis die Linsen weich sind. Ab und zu umrühren.
+    Mit Essig, Zucker, Salz und Pfeffer abschmecken.
+    Würstchen die letzten 10 Minuten in den Linsen heiß werden lassen.`,
+    'Schwäbischer Klassiker. Für Kinder lieber weniger Essig.\nWürstchen für Kleine längs halbieren und klein schneiden.',
+    ['s-spaetzle']),
+  S('s-maultaschen', 'Maultaschen in der Brühe', '🥟', 'Suppe', 15, 3, `
+    6 Maultaschen (Kühlregal)
+    1 l Gemüse- oder Fleischbrühe
+    1 Karotte
+    Schnittlauch`, `
+    Brühe aufkochen. Karotte in feine Scheiben schneiden und 5 Minuten darin garen.
+    Maultaschen in die Brühe legen und 8–10 Minuten leise ziehen lassen (nicht sprudelnd kochen).
+    Mit Schnittlauch bestreuen und servieren.`,
+    'Variante „geschmälzt“: Maultaschen in Streifen schneiden und in Butter mit Zwiebeln anbraten, am Ende 2 verquirlte Eier drübergeben.',
+    []),
+  S('s-flaedle', 'Flädlesuppe', '🍲', 'Suppe', 25, 3, `
+    100 g Mehl
+    200 ml Milch
+    2 Eier
+    1 Prise Salz
+    Öl für die Pfanne
+    1 l Gemüse- oder Rinderbrühe
+    Schnittlauch`, `
+    Mehl, Milch, Eier und Salz zu einem glatten, dünnen Teig verrühren.
+    In einer Pfanne mit wenig Öl hauchdünne Pfannkuchen backen.
+    Pfannkuchen aufrollen und in feine Streifen schneiden (die Flädle).
+    Brühe heiß machen, Flädle in die Teller geben und mit Brühe übergießen.
+    Mit Schnittlauch bestreuen.`,
+    'Übrige Flädle halten sich im Kühlschrank 2 Tage.',
+    []),
+  S('s-bolognese', 'Spaghetti Bolognese', '🍝', 'Nudeln & Spätzle', 35, 3, `
+    300 g Spaghetti
+    300 g Rinderhack
+    1 Karotte
+    1 kleine Zwiebel
+    1 Dose gehackte Tomaten (400 g)
+    1 EL Tomatenmark
+    1 EL Öl
+    1 TL Oregano
+    Salz, Pfeffer, 1 Prise Zucker
+    Parmesan`, `
+    Zwiebel fein würfeln, Karotte fein reiben.
+    Hack im Öl krümelig anbraten, Zwiebel und Karotte dazu und kurz mitbraten.
+    Tomatenmark einrühren, dann die Tomaten dazugeben.
+    Mit Oregano, Salz, Pfeffer und Zucker würzen, 15–20 Minuten köcheln lassen.
+    In der Zeit die Spaghetti nach Packung in Salzwasser kochen.
+    Nudeln abgießen, mit der Soße mischen und Parmesan drüber.`,
+    'Die geriebene Karotte verschwindet in der Soße – unauffälliges Gemüse.\nFür Kinder Spaghetti einmal durchbrechen.',
+    []),
+  S('s-tomatennudeln', 'Nudeln mit Tomatensoße', '🍅', 'Nudeln & Spätzle', 20, 3, `
+    300 g Nudeln (Spirelli, Farfalle …)
+    1 Dose passierte Tomaten (500 g)
+    1 kleine Zucchini oder 1 rote Paprika
+    1 EL Olivenöl
+    1 TL Oregano oder Basilikum
+    Salz, 1 Prise Zucker
+    1 EL Frischkäse oder Schuss Sahne
+    Parmesan`, `
+    Nudeln nach Packung kochen.
+    Zucchini bzw. Paprika klein würfeln und im Öl 3 Minuten anbraten.
+    Passierte Tomaten dazugeben, würzen und 10 Minuten köcheln.
+    Frischkäse einrühren und die Soße fein pürieren.
+    Mit den Nudeln mischen, Parmesan drüber.`,
+    'Durchs Pürieren sieht man das Gemüse nicht mehr.\nSchnelles Notfall-Essen.',
+    []),
+  S('s-fischstaebchen', 'Fischstäbchen aus dem Ofen', '🐟', 'Fisch', 20, 3, `
+    15 Fischstäbchen (TK)
+    1 EL Öl`, `
+    Backofen auf 220 °C Ober-/Unterhitze vorheizen.
+    Fischstäbchen auf ein Blech mit Backpapier legen und dünn mit Öl bepinseln.
+    Ca. 15 Minuten backen, nach der Hälfte einmal wenden.`,
+    'Aus dem Ofen weniger fettig als aus der Pfanne.\nDazu passt ein Klecks Ketchup oder Joghurt-Dip.',
+    ['s-kartoffelbrei', 's-erbsen', 's-pommes']),
+  S('s-kartoffelbrei', 'Kartoffelbrei', '🥔', 'Beilage', 30, 3, `
+    800 g mehligkochende Kartoffeln
+    200 ml Milch
+    2 EL Butter
+    Salz
+    1 Prise Muskat`, `
+    Kartoffeln schälen, vierteln und in Salzwasser ca. 20 Minuten weich kochen.
+    Abgießen und kurz ausdampfen lassen.
+    Milch mit der Butter erwärmen.
+    Kartoffeln stampfen, dabei nach und nach die warme Milch einrühren.
+    Mit Salz und einer Prise Muskat abschmecken.`,
+    'Nicht mit dem Pürierstab – sonst wird der Brei klebrig.\nJonas kann mitstampfen.',
+    ['s-fischstaebchen', 's-bratwurst', 's-fleischkuechle', 's-erbsen']),
+  S('s-fleischkuechle', 'Fleischküchle', '🍖', 'Fleisch', 30, 3, `
+    500 g gemischtes Hackfleisch
+    1 Brötchen vom Vortag
+    1 kleine Zwiebel
+    1 Ei
+    1 TL Senf
+    Salz, Pfeffer, Paprikapulver
+    2 EL Öl`, `
+    Brötchen in Wasser einweichen und gut ausdrücken.
+    Zwiebel sehr fein würfeln.
+    Hack, Brötchen, Zwiebel, Ei, Senf und Gewürze gut verkneten.
+    Mit nassen Händen ca. 10 kleine flache Küchle formen.
+    Im Öl bei mittlerer Hitze von jeder Seite 5–6 Minuten braten, bis sie durch sind.`,
+    'Kleine Küchle formen – die mögen Kinder lieber und sie werden schneller gar.\nJonas kann beim Formen helfen (danach Hände waschen!).',
+    ['s-kartoffelbrei', 's-spaetzle', 's-erbsen', 's-sosse']),
+  S('s-nuggets', 'Hähnchen-Nuggets (selbstgemacht)', '🍗', 'Fleisch', 30, 3, `
+    400 g Hähnchenbrust
+    2 Eier
+    3 EL Mehl
+    80 g Cornflakes (ungezuckert)
+    Salz, Paprikapulver
+    2 EL Öl`, `
+    Backofen auf 200 °C Ober-/Unterhitze vorheizen.
+    Hähnchen in mundgerechte Stücke schneiden, leicht salzen und mit Paprika würzen.
+    Cornflakes in einem Gefrierbeutel mit dem Nudelholz zerbröseln.
+    Drei Teller vorbereiten: Mehl, verquirlte Eier, Cornflakes-Brösel.
+    Stücke nacheinander in Mehl, Ei und Bröseln wenden und aufs Blech legen.
+    Mit etwas Öl beträufeln und ca. 15–18 Minuten backen, bis sie goldbraun und durch sind.`,
+    'Jonas kann die Cornflakes zerkrümeln – macht Spaß!\nDazu Ketchup oder Joghurt-Dip.',
+    ['s-pommes', 's-erbsen']),
+  S('s-pommes', 'Ofen-Kartoffelspalten', '🍟', 'Beilage', 35, 3, `
+    800 g festkochende Kartoffeln
+    2 EL Öl
+    1 TL Paprikapulver (edelsüß)
+    Salz`, `
+    Backofen auf 220 °C Ober-/Unterhitze vorheizen.
+    Kartoffeln gut waschen und in Spalten schneiden (Schale kann dranbleiben).
+    In einer Schüssel mit Öl, Paprika und Salz mischen.
+    Auf einem Blech mit Backpapier verteilen, nicht übereinander.
+    25–30 Minuten backen, nach der Hälfte wenden.`,
+    'Gesündere Pommes. Auch mit Süßkartoffel lecker.',
+    ['s-nuggets', 's-fischstaebchen', 's-fleischkuechle']),
+  S('s-pfannkuchen', 'Pfannkuchen', '🥞', 'Süß', 25, 3, `
+    250 g Mehl
+    500 ml Milch
+    3 Eier
+    1 Prise Salz
+    1 EL Zucker
+    Butter oder Öl für die Pfanne`, `
+    Mehl, Milch, Eier, Salz und Zucker zu einem glatten Teig verrühren.
+    Teig 10 Minuten quellen lassen.
+    Etwas Butter in der Pfanne erhitzen, eine Kelle Teig hineingeben und die Pfanne schwenken.
+    Wenn die Unterseite goldbraun ist, wenden und fertig backen.
+    Fertige Pfannkuchen im Ofen bei 50 °C warm halten.`,
+    'Füllung: Apfelmus, Marmelade, Nutella oder Zimt & Zucker.\nHerzhaft: mit Käse und Schinken.',
+    ['s-apfelmus']),
+  S('s-milchreis', 'Milchreis', '🍚', 'Süß', 40, 3, `
+    250 g Milchreis
+    1 l Milch
+    2 EL Zucker
+    1 Päckchen Vanillezucker
+    1 Prise Salz
+    Zimt & Zucker zum Bestreuen`, `
+    Milch mit Zucker, Vanillezucker und Salz aufkochen (Achtung, kocht schnell über!).
+    Reis einrühren und einmal aufkochen lassen.
+    Hitze ganz klein stellen, Deckel drauf und 30 Minuten quellen lassen.
+    Dabei alle 5 Minuten umrühren, damit nichts anbrennt.
+    Mit Zimt & Zucker oder Apfelmus servieren.`,
+    'Schmeckt warm und kalt. Mit Kirschen oder Erdbeeren auch lecker.',
+    ['s-apfelmus']),
+  S('s-apfelmus', 'Apfelmus (selbstgemacht)', '🍎', 'Beilage', 20, 3, `
+    1 kg Äpfel (z. B. Boskop, Elstar)
+    100 ml Wasser oder Apfelsaft
+    1 EL Zucker (optional)
+    1 Prise Zimt`, `
+    Äpfel schälen, vierteln, Kerngehäuse entfernen und in Stücke schneiden.
+    Mit Wasser in einen Topf geben, zugedeckt 10–15 Minuten weich kochen.
+    Mit dem Kartoffelstampfer oder Pürierstab zerdrücken.
+    Nach Geschmack mit Zucker und Zimt abschmecken.`,
+    'Hält im Kühlschrank ca. 1 Woche.\nOft süß genug ganz ohne Zucker.',
+    ['s-pfannkuchen', 's-milchreis', 's-kaesespaetzle']),
+  S('s-kartoffelsuppe', 'Kartoffelsuppe mit Würstchen', '🥣', 'Suppe', 35, 3, `
+    600 g mehligkochende Kartoffeln
+    2 Karotten
+    1 Stück Lauch oder 1 Zwiebel
+    1 EL Butter
+    1 l Gemüsebrühe
+    100 ml Sahne
+    3 Wiener Würstchen
+    Salz, Pfeffer, Muskat, Majoran`, `
+    Kartoffeln, Karotten und Lauch schälen bzw. putzen und klein schneiden.
+    Lauch in Butter andünsten, Kartoffeln und Karotten dazu.
+    Mit Brühe auffüllen und ca. 20 Minuten weich kochen.
+    Etwa die Hälfte pürieren, damit die Suppe sämig wird. Sahne einrühren.
+    Würstchen in Stücke schneiden und 5 Minuten in der Suppe erwärmen.
+    Mit Salz, Pfeffer, Muskat und Majoran abschmecken.`,
+    'Würstchen für Kleine längs halbieren und klein schneiden.\nLässt sich gut einfrieren.',
+    []),
+  S('s-minipizza', 'Toast-Pizza', '🍕', 'Schnell', 15, 3, `
+    6 Scheiben Toastbrot
+    6 EL passierte Tomaten oder Pizzasoße
+    1 TL Oregano
+    100 g geriebener Käse (Gouda/Mozzarella)
+    Belag: Kochschinken, Mais, Paprika, Salami …`, `
+    Backofen auf 200 °C Ober-/Unterhitze vorheizen.
+    Toasts aufs Blech mit Backpapier legen.
+    Mit Tomatensoße bestreichen und mit Oregano bestreuen.
+    Nach Lust belegen und mit Käse bestreuen.
+    Ca. 8–10 Minuten backen, bis der Käse schmilzt.`,
+    'Jonas kann seine Pizza selbst belegen – Gesichter aus Belag legen kommt gut an.',
+    []),
+];
+
+/* ---------- Speicher: IndexedDB (kein 5-MB-Limit wie localStorage, wichtig für Fotos) ---------- */
+const DB_NAME = 'jonas-kueche', STORE = 'kv';
+let _db = null;
+function idb(){
+  if (_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+    r.onsuccess = () => { _db = r.result; res(_db); };
+    r.onerror = () => rej(r.error);
+  });
+}
+async function dbGet(k){ const db = await idb(); return new Promise((res, rej) => { const q = db.transaction(STORE).objectStore(STORE).get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); }
+async function dbSet(k, v){ const db = await idb(); return new Promise((res, rej) => { const tx = db.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+
+let state = {version: 1, recipes: [], ratings: []};
+async function save(){
+  try { await dbSet('state', state); }
+  catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+}
+function normalize(s){
+  return {
+    version: 1,
+    recipes: Array.isArray(s?.recipes) ? s.recipes : [],
+    ratings: Array.isArray(s?.ratings) ? s.ratings : []
+  };
+}
+
+/* ---------- Auswertung ---------- */
+function stats(rid){
+  const rs = state.ratings.filter(r => r.recipeId === rid);
+  if (!rs.length) return {count: 0, avg: null, last: null};
+  const avg = rs.reduce((a, r) => a + r.score, 0) / rs.length;
+  const last = rs.map(r => r.date).sort().pop();
+  return {count: rs.length, avg, last};
+}
+const faceFor = avg => avg == null ? '' : FACES[Math.min(5, Math.max(1, Math.round(avg)))];
+const getRecipe = id => state.recipes.find(r => r.id === id);
+const thumbHtml = r => r.photo ? `<img src="${r.photo}" alt="">` : esc(r.emoji || '🍽️');
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(id){
+  ['tabRecipes', 'tabHistory', 'tabSettings'].forEach(t => $(t).classList.toggle('hidden', t !== id));
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === id));
+  window.scrollTo(0, 0);
+  renderAll();
+}
+
+/* ---------- Rezeptliste ---------- */
+let curCat = '';
+$('q').oninput = renderList;
+$('sort').onchange = renderList;
+function categories(){ return [...new Set(state.recipes.map(r => (r.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de')); }
+function renderList(){
+  const cats = categories();
+  if (curCat && !cats.includes(curCat)) curCat = '';
+  $('chips').innerHTML = cats.length ? [`<button class="chip ${curCat ? '' : 'on'}" data-c="">Alle</button>`, ...cats.map(c => `<button class="chip ${c === curCat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`)].join('') : '';
+  $('chips').querySelectorAll('.chip').forEach(b => b.onclick = () => { curCat = b.dataset.c; renderList(); });
+
+  const q = $('q').value.trim().toLowerCase();
+  let list = state.recipes.map(r => ({r, s: stats(r.id)}));
+  if (curCat) list = list.filter(x => (x.r.category || '').trim() === curCat);
+  if (q) list = list.filter(x => x.r.name.toLowerCase().includes(q) || (x.r.ingredients || []).some(i => i.toLowerCase().includes(q)));
+  const sort = $('sort').value;
+  const byName = (a, b) => a.r.name.localeCompare(b.r.name, 'de');
+  list.sort((a, b) => {
+    if (sort === 'az') return byName(a, b);
+    if (sort === 'recent') return (b.s.last || '').localeCompare(a.s.last || '') || byName(a, b);
+    if (sort === 'often') return b.s.count - a.s.count || byName(a, b);
+    return (b.s.avg ?? -1) - (a.s.avg ?? -1) || b.s.count - a.s.count || byName(a, b);
+  });
+
+  const el = $('rlist');
+  if (!state.recipes.length){
+    el.innerHTML = `<div class="empty"><div class="big">👨‍🍳</div><p><b>Noch keine Rezepte.</b><br>Tippe unten rechts auf <b>+</b>, um Jonas' erstes Lieblingsessen anzulegen.</p></div>`;
+    return;
+  }
+  if (!list.length){ el.innerHTML = `<div class="empty"><div class="big">🔍</div><p>Nichts gefunden.</p></div>`; return; }
+  el.innerHTML = list.map(({r, s}) => {
+    const meta = [r.category, r.time ? `${r.time} Min.` : '', s.count ? `${s.count}× gekocht` : 'noch nie gekocht'].filter(Boolean).map(esc).join(' · ');
+    const last = s.last ? `<div class="rmeta">Zuletzt ${daysAgo(s.last)}</div>` : '';
+    const score = s.avg != null ? `<div class="f">${faceFor(s.avg)}</div><div class="n">${fmtNum(s.avg)}</div>` : `<div class="f" style="opacity:.25">🙂</div><div class="n">–</div>`;
+    return `<button class="card ritem" data-id="${r.id}"><div class="thumb">${thumbHtml(r)}</div><div class="rinfo"><div class="rname">${esc(r.name)}</div><div class="rmeta">${meta}</div>${last}</div><div class="rscore">${score}</div></button>`;
+  }).join('');
+  el.querySelectorAll('.ritem').forEach(b => b.onclick = () => openDetail(b.dataset.id));
+}
+
+/* ---------- Overlays ---------- */
+function openOv(id){ $(id).classList.add('open'); $(id).scrollTop = 0; }
+function closeOv(id){ $(id).classList.remove('open'); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeOv(b.dataset.close));
+
+/* ---------- Detail ---------- */
+let curId = null;
+function openDetail(id){ curId = id; renderDetail(); openOv('detail'); }
+function renderDetail(){
+  const r = getRecipe(curId);
+  if (!r){ closeOv('detail'); return; }
+  const s = stats(r.id);
+  $('detailTitle').textContent = r.name;
+  const pills = [r.category && `🏷️ ${esc(r.category)}`, r.time && `⏱️ ${r.time} Min.`, r.portions && `🍽️ ${r.portions} Portionen`].filter(Boolean);
+  const score = s.count
+    ? `<div class="card scorebox"><div class="f">${faceFor(s.avg)}</div><div class="txt"><b>${fmtNum(s.avg)} von 5</b><div>${s.count}× gekocht · zuletzt ${daysAgo(s.last)} (${fmtDate(s.last)})</div></div></div>`
+    : `<div class="card scorebox"><div class="f" style="opacity:.3">🙂</div><div class="txt"><b>Noch nicht bewertet</b><div>Nach dem Kochen auf „Bewerten“ tippen.</div></div></div>`;
+  const ing = (r.ingredients || []);
+  const steps = (r.steps || []);
+  const sides = (r.goesWith || []).map(getRecipe).filter(Boolean);
+  const hist = state.ratings.filter(x => x.recipeId === r.id).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  $('detailBody').innerHTML = `
+    <div class="hero">${thumbHtml(r)}</div>
+    <div class="dtitle">${esc(r.name)}</div>
+    ${pills.length ? `<div class="pills">${pills.map(p => `<span class="pill">${p}</span>`).join('')}</div>` : ''}
+    ${score}
+    <div class="btnrow">
+      ${steps.length ? `<button class="btn acc" id="dCook">👨‍🍳 Kochen</button>` : ''}
+      <button class="btn ${steps.length ? '' : 'acc'}" id="dRate">😋 Bewerten</button>
+    </div>
+    ${ing.length ? `<h3 class="sec">🧺 Zutaten</h3><div class="card"><ul class="ing" id="dIng">${ing.map(i => `<li><div class="cb">✓</div><span>${esc(i)}</span></li>`).join('')}</ul></div>` : ''}
+    ${steps.length ? `<h3 class="sec">📝 Anleitung</h3><ol class="steps" id="dSteps">${steps.map((t, i) => `<li class="card"><div class="no">${i + 1}</div><div>${esc(t)}</div></li>`).join('')}</ol>` : ''}
+    ${sides.length ? `<h3 class="sec">🍽️ Passt dazu</h3><div class="sides">${sides.map(x => `<button class="card side" data-id="${x.id}"><span class="e">${x.photo ? `<img src="${x.photo}" alt="">` : esc(x.emoji || '🍽️')}</span>${esc(x.name)}</button>`).join('')}</div>` : ''}
+    ${r.notes ? `<h3 class="sec">💡 Tipps</h3><div class="card notes">${esc(r.notes)}</div>` : ''}
+    <h3 class="sec">📅 Bewertungen</h3>
+    ${hist.length ? `<div class="hist">${hist.map(h => histItem(h, false)).join('')}</div>` : `<p style="color:var(--muted);margin:0">Noch keine.</p>`}
+  `;
+  $('dRate').onclick = () => openRate(r.id);
+  if ($('dCook')) $('dCook').onclick = () => openCook(r.id);
+  $('detailBody').querySelectorAll('#dIng li, #dSteps li').forEach(li => li.onclick = () => li.classList.toggle('done'));
+  $('detailBody').querySelectorAll('.hitem').forEach(b => b.onclick = () => openRate(r.id, b.dataset.rid));
+  $('detailBody').querySelectorAll('.side').forEach(b => b.onclick = () => openDetail(b.dataset.id));
+}
+$('detailEdit').onclick = () => openEdit(curId);
+
+function histItem(h, withName){
+  const r = getRecipe(h.recipeId);
+  const name = withName ? `<b>${esc(r ? r.name : '(gelöschtes Rezept)')}</b><br>` : '';
+  const sub = [fmtDate(h.date), h.eaten && EATEN_TXT[h.eaten]].filter(Boolean).join(' · ');
+  return `<button class="card hitem" data-rid="${h.id}" data-recipe="${h.recipeId}"><div class="f">${FACES[h.score]}</div><div class="b">${name}<div class="d">${esc(sub)} · ${FACE_TXT[h.score]}</div>${h.note ? `<div class="nt">${esc(h.note)}</div>` : ''}</div></button>`;
+}
+
+/* ---------- Bearbeiten ---------- */
+let editId = null, editPhoto = null, editEmoji = '🍝';
+function openEdit(id){
+  editId = id || null;
+  const r = id ? getRecipe(id) : null;
+  $('editTitle').textContent = r ? 'Rezept bearbeiten' : 'Neues Rezept';
+  $('fName').value = r?.name || '';
+  $('fCat').value = r?.category || '';
+  $('fTime').value = r?.time || '';
+  $('fPort').value = r?.portions || '';
+  $('fIng').value = (r?.ingredients || []).join('\n');
+  $('fSteps').value = (r?.steps || []).join('\n');
+  $('fNotes').value = r?.notes || '';
+  editPhoto = r?.photo || null;
+  editEmoji = r?.emoji || '🍝';
+  $('editDelete').classList.toggle('hidden', !r);
+  $('catList').innerHTML = categories().map(c => `<option value="${esc(c)}">`).join('');
+  editGoes = new Set(r?.goesWith || []);
+  renderEmojis(); renderEditThumb(); renderGoes();
+  openOv('edit');
+}
+let editGoes = new Set();
+function renderGoes(){
+  const opts = state.recipes.filter(x => x.id !== editId)
+    .sort((a, b) => (b.category === 'Beilage') - (a.category === 'Beilage') || a.name.localeCompare(b.name, 'de'));
+  $('fGoes').innerHTML = opts.length
+    ? opts.map(x => `<button type="button" data-id="${x.id}" class="${editGoes.has(x.id) ? 'on' : ''}">${esc(x.emoji || '')} ${esc(x.name)}</button>`).join('')
+    : '<span class="hint">Noch keine anderen Rezepte.</span>';
+  $('fGoes').querySelectorAll('button').forEach(b => b.onclick = () => {
+    editGoes.has(b.dataset.id) ? editGoes.delete(b.dataset.id) : editGoes.add(b.dataset.id);
+    b.classList.toggle('on');
+  });
+}
+function renderEmojis(){
+  $('fEmojis').innerHTML = EMOJIS.map(e => `<button type="button" class="${e === editEmoji ? 'on' : ''}">${e}</button>`).join('');
+  $('fEmojis').querySelectorAll('button').forEach(b => b.onclick = () => { editEmoji = b.textContent; renderEmojis(); renderEditThumb(); });
+}
+function renderEditThumb(){
+  $('fThumb').innerHTML = editPhoto ? `<img src="${editPhoto}" alt="">` : editEmoji;
+  $('fPhotoDel').classList.toggle('hidden', !editPhoto);
+}
+$('fPhotoBtn').onclick = () => $('fPhoto').click();
+$('fPhotoDel').onclick = () => { editPhoto = null; renderEditThumb(); };
+$('fPhoto').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try { editPhoto = await compressImage(f, 1000, 0.75); renderEditThumb(); }
+  catch (err) { alert('Foto konnte nicht geladen werden: ' + err.message); }
+};
+function compressImage(file, maxSide, quality){
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Bildformat nicht lesbar')); };
+    img.src = url;
+  });
+}
+const lines = s => s.split('\n').map(x => x.trim()).filter(Boolean);
+const posInt = v => { const n = parseInt(v, 10); return n > 0 ? n : null; };
+$('editSave').onclick = async () => {
+  const name = $('fName').value.trim();
+  if (!name){ alert('Bitte einen Namen eingeben.'); $('fName').focus(); return; }
+  const data = {
+    name, emoji: editEmoji, photo: editPhoto,
+    category: $('fCat').value.trim(), time: posInt($('fTime').value), portions: posInt($('fPort').value),
+    ingredients: lines($('fIng').value), steps: lines($('fSteps').value), notes: $('fNotes').value.trim(),
+    goesWith: [...editGoes].filter(id => getRecipe(id)),
+    updatedAt: Date.now()
+  };
+  if (editId) Object.assign(getRecipe(editId), data);
+  else { editId = uid(); state.recipes.push({id: editId, createdAt: Date.now(), ...data}); }
+  await save();
+  closeOv('edit');
+  curId = editId; renderDetail(); openOv('detail');
+  renderList();
+  toast('Gespeichert ✓');
+};
+$('editDelete').onclick = async () => {
+  const r = getRecipe(editId);
+  const n = state.ratings.filter(x => x.recipeId === editId).length;
+  if (!confirm(`„${r.name}“ wirklich löschen?` + (n ? `\n${n} Bewertung(en) werden mitgelöscht.` : ''))) return;
+  state.recipes = state.recipes.filter(x => x.id !== editId);
+  state.ratings = state.ratings.filter(x => x.recipeId !== editId);
+  state.recipes.forEach(x => { if (x.goesWith) x.goesWith = x.goesWith.filter(id => id !== editId); });
+  await save();
+  closeOv('edit'); closeOv('detail'); renderAll();
+  toast('Gelöscht');
+};
+
+/* ---------- Bewertung ---------- */
+let rateRecipe = null, rateId = null, rateScore = 0, rateEatenVal = null;
+function openRate(recipeId, ratingId){
+  rateRecipe = recipeId; rateId = ratingId || null;
+  const r = getRecipe(recipeId);
+  const h = rateId ? state.ratings.find(x => x.id === rateId) : null;
+  rateScore = h?.score || 0; rateEatenVal = h?.eaten || null;
+  $('rateTitle').textContent = h ? 'Bewertung ändern' : "Wie hat's geschmeckt?";
+  $('rateSub').textContent = `${r.emoji || ''} ${r.name}`;
+  $('rateDate').value = h?.date || today();
+  $('rateNote').value = h?.note || '';
+  $('rateDelete').classList.toggle('hidden', !h);
+  renderRate();
+  $('rateBg').classList.add('open'); $('rate').classList.add('open');
+}
+function closeRate(){ $('rateBg').classList.remove('open'); $('rate').classList.remove('open'); }
+function renderRate(){
+  $('rateFaces').innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${n === rateScore ? 'on' : ''}">${FACES[n]}</button>`).join('');
+  $('rateFaces').querySelectorAll('button').forEach(b => b.onclick = () => { rateScore = +b.dataset.n; renderRate(); });
+  $('rateFaceTxt').textContent = rateScore ? FACE_TXT[rateScore] : 'Tippe auf ein Gesicht';
+  $('rateEaten').innerHTML = EATEN.map(([k, t]) => `<button type="button" data-k="${k}" class="${k === rateEatenVal ? 'on' : ''}">${t}</button>`).join('');
+  $('rateEaten').querySelectorAll('button').forEach(b => b.onclick = () => { rateEatenVal = rateEatenVal === b.dataset.k ? null : b.dataset.k; renderRate(); });
+}
+$('rateBg').onclick = closeRate;
+$('rateCancel').onclick = closeRate;
+$('rateSave').onclick = async () => {
+  if (!rateScore){ toast('Bitte ein Gesicht auswählen'); return; }
+  const data = {score: rateScore, eaten: rateEatenVal, date: $('rateDate').value || today(), note: $('rateNote').value.trim()};
+  if (rateId) Object.assign(state.ratings.find(x => x.id === rateId), data);
+  else state.ratings.push({id: uid(), recipeId: rateRecipe, createdAt: Date.now(), ...data});
+  await save();
+  closeRate(); renderAll();
+  toast(`${FACES[rateScore]} Gespeichert`);
+};
+$('rateDelete').onclick = async () => {
+  if (!confirm('Diese Bewertung löschen?')) return;
+  state.ratings = state.ratings.filter(x => x.id !== rateId);
+  await save(); closeRate(); renderAll();
+};
+
+/* ---------- Kochmodus ---------- */
+let cookStep = 0, wakeLock = null;
+function openCook(id){
+  const r = getRecipe(id);
+  cookStep = 0;
+  $('cookTitle').textContent = r.name;
+  $('cookIngList').innerHTML = (r.ingredients || []).map(i => `<li><div class="cb">✓</div><span>${esc(i)}</span></li>`).join('') || '<li><span>Keine Zutaten hinterlegt</span></li>';
+  $('cookIngList').querySelectorAll('li').forEach(li => li.onclick = () => li.classList.toggle('done'));
+  $('cookIng').classList.add('hidden');
+  renderCook(); openOv('cook');
+  requestWake();
+}
+function renderCook(){
+  const steps = getRecipe(curId).steps;
+  $('cookNo').textContent = `Schritt ${cookStep + 1} von ${steps.length}`;
+  $('cookTxt').textContent = steps[cookStep];
+  $('cookProg').style.width = `${(cookStep + 1) / steps.length * 100}%`;
+  $('cookPrev').disabled = cookStep === 0;
+  $('cookPrev').style.opacity = cookStep === 0 ? .4 : 1;
+  $('cookNext').textContent = cookStep === steps.length - 1 ? 'Fertig 🎉' : 'Weiter ›';
+}
+$('cookPrev').onclick = () => { if (cookStep > 0){ cookStep--; renderCook(); } };
+$('cookNext').onclick = () => {
+  const n = getRecipe(curId).steps.length;
+  if (cookStep < n - 1){ cookStep++; renderCook(); return; }
+  endCook(); openRate(curId);
+};
+$('cookClose').onclick = endCook;
+$('cookIngBtn').onclick = () => $('cookIng').classList.toggle('hidden');
+function endCook(){ closeOv('cook'); releaseWake(); }
+async function requestWake(){ try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) { /* nicht verfügbar */ } }
+function releaseWake(){ try { wakeLock?.release(); } catch (e) {} wakeLock = null; }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && $('cook').classList.contains('open')) requestWake(); });
+
+/* ---------- Verlauf ---------- */
+function renderHistory(){
+  const el = $('historyBody');
+  if (!state.ratings.length){
+    el.innerHTML = `<div class="empty"><div class="big">😋</div><p>Noch keine Bewertungen.<br>Nach dem Kochen im Rezept auf <b>„Bewerten“</b> tippen.</p></div>`;
+    return;
+  }
+  const all = state.recipes.map(r => ({r, s: stats(r.id)})).filter(x => x.s.count);
+  const top = [...all].sort((a, b) => b.s.avg - a.s.avg || b.s.count - a.s.count).slice(0, 3);
+  const flop = [...all].filter(x => x.s.avg < 3).sort((a, b) => a.s.avg - b.s.avg).slice(0, 3);
+  const avgAll = state.ratings.reduce((a, r) => a + r.score, 0) / state.ratings.length;
+  const month = today().slice(0, 7);
+  const thisMonth = state.ratings.filter(r => r.date.startsWith(month)).length;
+  const medal = ['🥇', '🥈', '🥉'];
+  const row = (x, m) => `<button data-id="${x.r.id}"><span class="m">${m}</span><span style="flex:1">${esc(x.r.name)}</span><span>${faceFor(x.s.avg)} ${fmtNum(x.s.avg)}</span></button>`;
+  const list = [...state.ratings].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+  el.innerHTML = `
+    <div class="stats">
+      <div class="card stat"><div class="v">${state.ratings.length}</div><div class="l">Mal gekocht</div></div>
+      <div class="card stat"><div class="v">${thisMonth}</div><div class="l">diesen Monat</div></div>
+      <div class="card stat"><div class="v">${state.recipes.length}</div><div class="l">Rezepte</div></div>
+      <div class="card stat"><div class="v">${faceFor(avgAll)} ${fmtNum(avgAll)}</div><div class="l">Ø Bewertung</div></div>
+    </div>
+    <h3 class="sec">🏆 Lieblingsessen</h3>
+    <div class="card top3">${top.map((x, i) => row(x, medal[i])).join('')}</div>
+    ${flop.length ? `<h3 class="sec">🙅 Eher nicht so</h3><div class="card top3">${flop.map(x => row(x, '·')).join('')}</div>` : ''}
+    <h3 class="sec">📅 Alle Bewertungen</h3>
+    <div class="hist">${list.map(h => histItem(h, true)).join('')}</div>
+  `;
+  el.querySelectorAll('.top3 button').forEach(b => b.onclick = () => openDetail(b.dataset.id));
+  el.querySelectorAll('.hitem').forEach(b => b.onclick = () => { if (getRecipe(b.dataset.recipe)) openDetail(b.dataset.recipe); });
+}
+
+/* ---------- Einstellungen / Backup ---------- */
+$('btnExport').onclick = async () => {
+  const payload = JSON.stringify({app: 'jonas-kueche', version: 1, exportedAt: new Date().toISOString(), data: state});
+  const name = `jonas-kueche-backup-${today()}.json`;
+  const file = new File([payload], name, {type: 'application/json'});
+  if (navigator.canShare && navigator.canShare({files: [file]})){
+    try { await navigator.share({files: [file], title: name}); return; } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('btnStarters').onclick = async () => {
+  const n = addStarters();
+  if (!n){ toast('Alle Basis-Rezepte sind schon da'); return; }
+  await save(); renderAll(); toast(`${n} Rezept${n > 1 ? 'e' : ''} ergänzt ✓`);
+};
+$('btnImport').onclick = () => $('importFile').click();
+$('importFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.app !== 'jonas-kueche' || !j.data) throw new Error('Keine Backup-Datei von Jonas\' Küche');
+    const d = normalize(j.data);
+    if (!confirm(`Backup vom ${new Date(j.exportedAt).toLocaleDateString('de-DE')} laden?\n${d.recipes.length} Rezepte, ${d.ratings.length} Bewertungen.\n\nAlle aktuellen Daten werden ersetzt.`)) return;
+    state = d; await save(); renderAll(); toast('Backup geladen ✓');
+  } catch (err) { alert('Import fehlgeschlagen: ' + err.message); }
+};
+async function renderInfo(){
+  let txt = `Version ${APP_VERSION} · ${state.recipes.length} Rezepte · ${state.ratings.length} Bewertungen`;
+  try {
+    const kb = Math.round(new Blob([JSON.stringify(state)]).size / 1024);
+    txt += ` · ${kb >= 1024 ? fmtNum(kb / 1024) + ' MB' : kb + ' KB'}`;
+  } catch (e) {}
+  txt += '<br>Die Daten liegen nur auf diesem Gerät. Bitte ab und zu ein Backup machen.';
+  $('infoTxt').innerHTML = txt;
+}
+
+/* ---------- Start ---------- */
+function renderAll(){
+  renderList(); renderHistory(); renderInfo();
+  if ($('detail').classList.contains('open')) renderDetail();
+}
+$('fab').onclick = () => openEdit(null);
+
+function addStarters(){
+  const have = new Set(state.recipes.map(r => r.starterId || r.id));
+  const add = STARTERS.filter(s => !have.has(s.id)).map(s => ({...structuredClone(s), createdAt: Date.now()}));
+  state.recipes.push(...add);
+  return add.length;
+}
+(async function init(){
+  try {
+    const raw = await dbGet('state');
+    if (raw === undefined){ state = normalize(null); addStarters(); await save(); }   // allererster Start
+    else state = normalize(raw);
+  }
+  catch (e) { alert('Daten konnten nicht geladen werden: ' + e.message); }
+  if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+  renderAll();
+})();
+// iOS-PWA: verzögerte Aktivierung → beim Anzeigen erneut rendern
+window.addEventListener('pageshow', () => renderAll());
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>
