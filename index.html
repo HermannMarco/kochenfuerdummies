@@ -160,6 +160,13 @@
   .setcard p{margin:4px 0 12px;color:var(--muted);font-size:14px}
   .toast{position:fixed;left:50%;bottom:calc(90px + var(--safeB));transform:translateX(-50%) translateY(20px);background:#2b2118;color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:all .25s;z-index:60;pointer-events:none;white-space:nowrap}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* Sync / Login */
+  .sdot{float:right;font-size:20px;padding:4px 2px;line-height:1}
+  .lead{color:var(--muted);text-align:center;margin:0 0 18px}
+  .lerr{background:#fef2f2;color:var(--bad);border:1px solid #fecaca;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+  .linkbtn{display:block;width:100%;padding:12px;color:var(--acc);font-size:15px;text-align:center}
+  .linkbtn.muted{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -167,7 +174,7 @@
 <!-- ========== Tab: Rezepte ========== -->
 <section id="tabRecipes">
   <header class="top">
-    <h1>Jonas' <span>Küche</span></h1>
+    <h1>Jonas' <span>Küche</span><button class="sdot hidden" id="syncDot" aria-label="Synchronisierung"></button></h1>
     <div class="searchrow">
       <input id="q" type="search" placeholder="Rezept oder Zutat suchen …" autocomplete="off">
       <select id="sort" aria-label="Sortierung">
@@ -193,6 +200,11 @@
 <section id="tabSettings" class="hidden">
   <header class="top"><h1><span>Einstellungen</span></h1></header>
   <main>
+    <div class="card setcard">
+      <b>☁️ Synchronisierung</b>
+      <p id="syncTxt"></p>
+      <button class="btn acc" style="width:100%" id="syncBtn">Anmelden</button>
+    </div>
     <div class="card setcard">
       <b>💾 Backup speichern</b>
       <p>Speichert alle Rezepte, Fotos und Bewertungen in einer Datei, z. B. für einen Handywechsel. Am iPhone über „Teilen → In Dateien sichern“.</p>
@@ -324,11 +336,35 @@
   </div>
 </div>
 
+<!-- ========== Overlay: Anmelden (Sync) ========== -->
+<div class="ov" id="login">
+  <div class="ovbar">
+    <button class="ibtn" id="loginClose">✕</button>
+    <div class="t">Synchronisieren</div>
+    <div style="min-width:44px"></div>
+  </div>
+  <div class="ovbody">
+    <div style="text-align:center;font-size:64px;margin:8px 0 4px">☁️</div>
+    <p class="lead">Mit einem Konto sind Rezepte, Fotos und Bewertungen auf <b>allen Geräten</b> gleich – z. B. am PC eintragen und am iPhone kochen.</p>
+    <div class="field"><label for="lEmail">E-Mail</label><input id="lEmail" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false"></div>
+    <div class="field"><label for="lPw">Passwort</label><input id="lPw" type="password" autocomplete="current-password"><div class="hint">Mindestens 6 Zeichen. Auf jedem Gerät dasselbe Konto verwenden.</div></div>
+    <div class="lerr hidden" id="lErr"></div>
+    <button class="btn acc" style="width:100%;margin-bottom:8px" id="lLogin">Anmelden</button>
+    <button class="btn" style="width:100%" id="lSignup">Neues Konto erstellen</button>
+    <button class="linkbtn" id="lReset">Passwort vergessen?</button>
+    <button class="linkbtn muted" id="lSkip">Ohne Konto weiter (nur auf diesem Gerät)</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
+<!-- Firebase (compat) – fehlt beim Offline-Start ohne Cache → App läuft lokal weiter -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 'use strict';
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 const FACES = {1:'😖',2:'😕',3:'😐',4:'😋',5:'😍'};
 const FACE_TXT = {1:'Mag er gar nicht',2:'Eher nicht',3:'Geht so',4:'Lecker!',5:'Lieblingsessen!'};
 const EATEN = [['all','Alles 🍽️'],['half','Hälfte'],['bit','Nur probiert']];
@@ -652,6 +688,212 @@ let state = {version: 1, recipes: [], ratings: []};
 async function save(){
   try { await dbSet('state', state); }
   catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
+  if (cloud.ready) push();
+  else localStorage.setItem('jk-dirty', '1');   // beim nächsten Abgleich zusammenführen statt überschreiben
+}
+
+/* ---------- Cloud-Sync: Firebase Auth (E-Mail/Passwort) + Firestore ----------
+   users/{uid}/recipes/{id}  – Rezept ohne Foto
+   users/{uid}/photos/{id}   – {id, data} (Foto separat wegen 1-MB-Grenze je Dokument)
+   users/{uid}/ratings/{id}  – Bewertung
+   Lokal bleibt IndexedDB der schnelle Start-Cache; Firestore ist bei Anmeldung die Wahrheit. */
+const FB_CONFIG = {
+  apiKey: 'AIzaSyBizZn3PD-iJwiYx87hdbYW3p0bklNMKv8',
+  authDomain: 'kochen-fuer-dummies.firebaseapp.com',
+  projectId: 'kochen-fuer-dummies',
+  storageBucket: 'kochen-fuer-dummies.firebasestorage.app',
+  messagingSenderId: '81185478009',
+  appId: '1:81185478009:web:68ef9d37dcffa49dfb8ba8'
+};
+const COLLS = ['recipes', 'ratings', 'photos'];
+const cloud = {available: false, auth: null, db: null, user: null, ready: false, unsub: [], pending: false, error: null,
+  remote: {recipes: new Map(), ratings: new Map(), photos: new Map()}};
+const stable = v => Array.isArray(v) ? '[' + v.map(stable).join(',') + ']'
+  : (v && typeof v === 'object') ? '{' + Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}'
+  : JSON.stringify(v ?? null);
+const recipeDoc = r => { const {photo, ...rest} = r; return rest; };
+const stamp = x => x.updatedAt || x.createdAt || 0;
+
+function cloudInit(){
+  if (!window.firebase){ renderSync(); return; }
+  try {
+    firebase.initializeApp(FB_CONFIG);
+    cloud.auth = firebase.auth();
+    cloud.db = firebase.firestore();
+    cloud.db.settings({ignoreUndefinedProperties: true, merge: true});
+    cloud.db.enablePersistence({synchronizeTabs: true}).catch(() => {});   // Offline-Cache + Warteschlange
+    cloud.available = true;
+  } catch (e) { cloud.error = e.message; renderSync(); return; }
+  let firstAuth = true;
+  cloud.auth.onAuthStateChanged(u => {
+    cloud.user = u;
+    if (u) startSync(); else stopSync();
+    renderSync();
+    if (firstAuth && !u && !localStorage.getItem('jk-skip-login')) openLogin();
+    firstAuth = false;
+  });
+}
+
+function stopSync(){
+  cloud.unsub.forEach(f => f()); cloud.unsub = [];
+  cloud.ready = false; cloud.pending = false;
+}
+
+function startSync(){
+  stopSync();
+  const uid = cloud.user.uid;
+  const base = cloud.db.collection('users').doc(uid);
+  const docs = {}, fromServer = {}, pend = {};
+  cloud.error = null;
+  cloud.unsub = COLLS.map(n => base.collection(n).onSnapshot({includeMetadataChanges: true}, snap => {
+    const changed = !docs[n] || snap.docChanges().length > 0;
+    docs[n] = snap.docs.map(d => d.data());
+    if (!snap.metadata.fromCache) fromServer[n] = true;
+    pend[n] = snap.metadata.hasPendingWrites;
+    cloud.pending = COLLS.some(x => pend[x]);
+    cloud.error = null;
+
+    if (!cloud.ready){
+      if (!COLLS.every(x => docs[x])) return;
+      // Erstanmeldung auf diesem Gerät oder lokale Änderungen ohne Verbindung → zusammenführen (braucht Server-Stand)
+      const needMerge = localStorage.getItem('jk-synced') !== uid || localStorage.getItem('jk-dirty') === '1';
+      if (needMerge && !COLLS.every(x => fromServer[x])) { renderSync(); return; }
+      const local = state;
+      applyRemote(docs);
+      if (needMerge) state = unionMerge(local, state);
+      cloud.ready = true;
+      localStorage.setItem('jk-synced', uid);
+      localStorage.removeItem('jk-dirty');
+      push();
+    } else if (changed) applyRemote(docs);
+    else { renderSync(); return; }   // nur Metadaten (z. B. Server hat bestätigt)
+
+    dbSet('state', state).catch(() => {});
+    renderAll();
+  }, err => {
+    cloud.error = err.code === 'permission-denied' ? 'Keine Berechtigung (Firestore-Regeln prüfen).' : err.message;
+    renderSync();
+  }));
+}
+
+function applyRemote(docs){
+  const R = cloud.remote;
+  R.recipes = new Map(docs.recipes.map(d => [d.id, d]));
+  R.ratings = new Map(docs.ratings.map(d => [d.id, d]));
+  R.photos  = new Map(docs.photos.map(d => [d.id, d]));
+  state = normalize({
+    recipes: docs.recipes.map(d => ({...d, photo: R.photos.get(d.id)?.data || null})),
+    ratings: docs.ratings.map(d => ({...d}))
+  });
+}
+
+// Vereinigung: nichts geht verloren; bei gleicher ID gewinnt der neuere Stand (gleich alt → Server)
+function unionMerge(local, remote){
+  const m = (loc, rem) => {
+    const map = new Map(rem.map(x => [x.id, x]));
+    loc.forEach(x => { const r = map.get(x.id); if (!r || stamp(x) > stamp(r)) map.set(x.id, x); });
+    return [...map.values()];
+  };
+  return normalize({recipes: m(local.recipes, remote.recipes), ratings: m(local.ratings, remote.ratings)});
+}
+
+// Unterschied lokaler Stand ↔ letzter Firestore-Stand schreiben (Firestore puffert offline selbst)
+function push(){
+  if (!cloud.ready || !cloud.user) return;
+  const base = cloud.db.collection('users').doc(cloud.user.uid);
+  const want = {
+    recipes: new Map(state.recipes.map(r => [r.id, recipeDoc(r)])),
+    ratings: new Map(state.ratings.map(h => [h.id, h])),
+    photos:  new Map(state.recipes.filter(r => r.photo).map(r => [r.id, {id: r.id, data: r.photo}]))
+  };
+  const fail = e => { cloud.error = e.code === 'permission-denied' ? 'Keine Berechtigung (Firestore-Regeln prüfen).' : e.message; renderSync(); toast('⚠️ Sync-Fehler'); };
+  for (const n of COLLS){
+    const R = cloud.remote[n];
+    for (const [id, v] of want[n]){
+      if (R.has(id) && stable(R.get(id)) === stable(v)) continue;
+      if (n === 'photos' && v.data.length > 1000000){ toast('⚠️ Foto zu groß für den Abgleich'); continue; }
+      base.collection(n).doc(id).set(v).catch(fail);
+    }
+    for (const id of R.keys()) if (!want[n].has(id)) base.collection(n).doc(id).delete().catch(fail);
+  }
+}
+
+/* ---------- Anmelden / Abmelden ---------- */
+const AUTH_ERR = {
+  'auth/invalid-email': 'Die E-Mail-Adresse ist ungültig.',
+  'auth/missing-password': 'Bitte ein Passwort eingeben.',
+  'auth/user-not-found': 'E-Mail oder Passwort falsch.',
+  'auth/wrong-password': 'E-Mail oder Passwort falsch.',
+  'auth/invalid-credential': 'E-Mail oder Passwort falsch.',
+  'auth/invalid-login-credentials': 'E-Mail oder Passwort falsch.',
+  'auth/email-already-in-use': 'Für diese E-Mail gibt es schon ein Konto – bitte „Anmelden“.',
+  'auth/weak-password': 'Das Passwort braucht mindestens 6 Zeichen.',
+  'auth/network-request-failed': 'Keine Internetverbindung.',
+  'auth/too-many-requests': 'Zu viele Versuche – bitte kurz warten.',
+  'auth/operation-not-allowed': 'E-Mail-Anmeldung ist in Firebase noch nicht aktiviert.',
+  'auth/admin-restricted-operation': 'Neue Konten sind gesperrt – bitte mit dem bestehenden Konto anmelden.'
+};
+const authMsg = e => AUTH_ERR[e.code] || e.message;
+function openLogin(){
+  if (!cloud.available){ alert('Die Synchronisierung konnte nicht geladen werden (keine Internetverbindung beim Start). Bitte mit Internet neu öffnen.'); return; }
+  $('lErr').classList.add('hidden'); $('lPw').value = '';
+  openOv('login');
+}
+function loginErr(msg){ $('lErr').textContent = msg; $('lErr').classList.remove('hidden'); }
+async function doAuth(signup){
+  const email = $('lEmail').value.trim(), pw = $('lPw').value;
+  if (!email || !pw){ loginErr('Bitte E-Mail und Passwort eingeben.'); return; }
+  const btn = signup ? $('lSignup') : $('lLogin'), label = btn.textContent;
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    if (signup) await cloud.auth.createUserWithEmailAndPassword(email, pw);
+    else await cloud.auth.signInWithEmailAndPassword(email, pw);
+    localStorage.removeItem('jk-skip-login');
+    closeOv('login'); toast('☁️ Angemeldet – wird abgeglichen …');
+  } catch (e) { loginErr(authMsg(e)); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+$('lLogin').onclick = () => doAuth(false);
+$('lSignup').onclick = () => doAuth(true);
+$('lPw').onkeydown = e => { if (e.key === 'Enter') doAuth(false); };
+$('lReset').onclick = async () => {
+  const email = $('lEmail').value.trim();
+  if (!email){ loginErr('Bitte oben die E-Mail eingeben, dann noch einmal tippen.'); return; }
+  try { await cloud.auth.sendPasswordResetEmail(email); toast('📧 Mail zum Zurücksetzen verschickt'); }
+  catch (e) { loginErr(authMsg(e)); }
+};
+$('lSkip').onclick = () => { localStorage.setItem('jk-skip-login', '1'); closeOv('login'); };
+$('loginClose').onclick = () => closeOv('login');
+$('syncBtn').onclick = async () => {
+  if (!cloud.user){ openLogin(); return; }
+  if (!confirm('Abmelden?\nDie Daten bleiben auf diesem Gerät, werden aber nicht mehr mit den anderen Geräten abgeglichen.')) return;
+  stopSync();
+  localStorage.removeItem('jk-synced');
+  await cloud.auth.signOut();
+  toast('Abgemeldet');
+};
+$('syncDot').onclick = () => showTab('tabSettings');
+window.addEventListener('online', () => renderSync());
+window.addEventListener('offline', () => renderSync());
+
+function renderSync(){
+  let txt, icon = '', btn = 'Anmelden';
+  if (!cloud.available) txt = 'Nicht verfügbar – die App wurde ohne Internet gestartet. Daten liegen auf diesem Gerät.';
+  else if (!cloud.user) txt = 'Nicht angemeldet – die Daten liegen nur auf diesem Gerät. Melde dich an, um PC und iPhone abzugleichen.';
+  else {
+    btn = 'Abmelden';
+    let st;
+    if (cloud.error){ st = '⚠️ ' + esc(cloud.error); icon = '⚠️'; }
+    else if (!cloud.ready){ st = '⏳ Wird abgeglichen …'; icon = '⏳'; }
+    else if (!navigator.onLine || cloud.pending){ st = '⏳ Offline – Änderungen werden übertragen, sobald wieder Internet da ist.'; icon = '⏳'; }
+    else { st = '✅ Alles synchronisiert'; icon = '☁️'; }
+    txt = `Angemeldet als <b>${esc(cloud.user.email)}</b><br>${st}`;
+  }
+  $('syncTxt').innerHTML = txt;
+  $('syncBtn').textContent = btn;
+  $('syncBtn').classList.toggle('acc', !cloud.user);
+  $('syncDot').textContent = icon;
+  $('syncDot').classList.toggle('hidden', !icon);
 }
 function normalize(s){
   return {
@@ -819,7 +1061,13 @@ $('fPhotoDel').onclick = () => { editPhoto = null; renderEditThumb(); };
 $('fPhoto').onchange = async e => {
   const f = e.target.files[0]; e.target.value = '';
   if (!f) return;
-  try { editPhoto = await compressImage(f, 1000, 0.75); renderEditThumb(); }
+  try {
+    // ≤ ca. 700 KB, damit das Foto als eigenes Firestore-Dokument (max. 1 MB) passt
+    let q = 0.75, side = 1000;
+    editPhoto = await compressImage(f, side, q);
+    while (editPhoto.length > 700000 && q > 0.4){ q -= 0.1; side -= 100; editPhoto = await compressImage(f, side, q); }
+    renderEditThumb();
+  }
   catch (err) { alert('Foto konnte nicht geladen werden: ' + err.message); }
 };
 function compressImage(file, maxSide, quality){
@@ -850,7 +1098,8 @@ $('editSave').onclick = async () => {
     goesWith: [...editGoes].filter(id => getRecipe(id)),
     updatedAt: Date.now()
   };
-  if (editId) Object.assign(getRecipe(editId), data);
+  if (editId && getRecipe(editId)) Object.assign(getRecipe(editId), data);
+  else if (editId) state.recipes.push({id: editId, createdAt: Date.now(), ...data});   // inzwischen auf anderem Gerät gelöscht
   else { editId = uid(); state.recipes.push({id: editId, createdAt: Date.now(), ...data}); }
   await save();
   closeOv('edit');
@@ -897,8 +1146,9 @@ $('rateBg').onclick = closeRate;
 $('rateCancel').onclick = closeRate;
 $('rateSave').onclick = async () => {
   if (!rateScore){ toast('Bitte ein Gesicht auswählen'); return; }
-  const data = {score: rateScore, eaten: rateEatenVal, date: $('rateDate').value || today(), note: $('rateNote').value.trim()};
-  if (rateId) Object.assign(state.ratings.find(x => x.id === rateId), data);
+  const data = {score: rateScore, eaten: rateEatenVal, date: $('rateDate').value || today(), note: $('rateNote').value.trim(), updatedAt: Date.now()};
+  const old = rateId && state.ratings.find(x => x.id === rateId);
+  if (old) Object.assign(old, data);
   else state.ratings.push({id: uid(), recipeId: rateRecipe, createdAt: Date.now(), ...data});
   await save();
   closeRate(); renderAll();
@@ -1002,7 +1252,7 @@ $('importFile').onchange = async e => {
     const j = JSON.parse(await f.text());
     if (j.app !== 'jonas-kueche' || !j.data) throw new Error('Keine Backup-Datei von Jonas\' Küche');
     const d = normalize(j.data);
-    if (!confirm(`Backup vom ${new Date(j.exportedAt).toLocaleDateString('de-DE')} laden?\n${d.recipes.length} Rezepte, ${d.ratings.length} Bewertungen.\n\nAlle aktuellen Daten werden ersetzt.`)) return;
+    if (!confirm(`Backup vom ${new Date(j.exportedAt).toLocaleDateString('de-DE')} laden?\n${d.recipes.length} Rezepte, ${d.ratings.length} Bewertungen.\n\nAlle aktuellen Daten werden ersetzt` + (cloud.user ? ' – auch auf allen anderen angemeldeten Geräten.' : '.'))) return;
     state = d; await save(); renderAll(); toast('Backup geladen ✓');
   } catch (err) { alert('Import fehlgeschlagen: ' + err.message); }
 };
@@ -1012,13 +1262,13 @@ async function renderInfo(){
     const kb = Math.round(new Blob([JSON.stringify(state)]).size / 1024);
     txt += ` · ${kb >= 1024 ? fmtNum(kb / 1024) + ' MB' : kb + ' KB'}`;
   } catch (e) {}
-  txt += '<br>Die Daten liegen nur auf diesem Gerät. Bitte ab und zu ein Backup machen.';
+  txt += cloud.user ? '<br>Die Daten werden über dein Konto mit deinen anderen Geräten abgeglichen.' : '<br>Die Daten liegen nur auf diesem Gerät. Bitte ab und zu ein Backup machen.';
   $('infoTxt').innerHTML = txt;
 }
 
 /* ---------- Start ---------- */
 function renderAll(){
-  renderList(); renderHistory(); renderInfo();
+  renderList(); renderHistory(); renderInfo(); renderSync();
   if ($('detail').classList.contains('open')) renderDetail();
 }
 $('fab').onclick = () => openEdit(null);
@@ -1038,6 +1288,7 @@ function addStarters(){
   catch (e) { alert('Daten konnten nicht geladen werden: ' + e.message); }
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   renderAll();
+  cloudInit();
 })();
 // iOS-PWA: verzögerte Aktivierung → beim Anzeigen erneut rendern
 window.addEventListener('pageshow', () => renderAll());
